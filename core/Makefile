@@ -211,6 +211,7 @@ $(INSTALLED_BUILD_PROP_TARGET): $(BUILDINFO_SH) $(INTERNAL_BUILD_ID_MAKEFILE) $(
 			TARGET_CPU_ABI2="$(TARGET_CPU_ABI2)" \
 			TARGET_AAPT_CHARACTERISTICS="$(TARGET_AAPT_CHARACTERISTICS)" \
 			TARGET_UNIFIED_DEVICE="$(TARGET_UNIFIED_DEVICE)" \
+			TARGET_SETS_FSTAB="$(TARGET_SETS_FSTAB)" \
 			$(PRODUCT_BUILD_PROP_OVERRIDES) \
 			BUILD_DISPLAY_ID="$(BUILD_DISPLAY_ID)" \
 			BUILD_NUMBER="$(BUILD_NUMBER)" \
@@ -1463,6 +1464,12 @@ ifneq ($(TARGET_NO_SEPARATE_RECOVERY),)
     $(INTERNAL_OTA_PACKAGE_TARGET): separate_recovery := --no_separate_recovery=true
 endif
 
+ifneq ($(TARGET_SETS_FSTAB),)
+    $(INTERNAL_OTA_PACKAGE_TARGET): mount_by_label := true
+else
+    $(INTERNAL_OTA_PACKAGE_TARGET): mount_by_label := false
+endif
+
 $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
 	@echo "$(OTA_FROM_TARGET_SCRIPT)" > $(PRODUCT_OUT)/ota_script_path
 	@echo "$(override_device)" > $(PRODUCT_OUT)/ota_override_device
@@ -1477,6 +1484,7 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
 	   $(override_prop) \
 	   --persist=$(persist) \
 	   $(separate_recovery) \
+	   --mount_by_label=$(mount_by_label) \
 	   $(BUILT_TARGET_FILES_PACKAGE) $@
 
 CM_TARGET_PACKAGE := $(PRODUCT_OUT)/cm-$(CM_VERSION).zip
