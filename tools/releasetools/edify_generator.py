@@ -184,12 +184,14 @@ class EdifyGenerator(object):
     self.script.append(('apply_patch_space(%d) || abort("Not enough free space '
                         'on /system to apply patches.");') % (amount,))
 
-  def Mount(self, mount_point):
+  def Mount(self, mount_point, mount_by_label = False):
     """Mount the partition with the given mount_point."""
     fstab = self.info.get("fstab", None)
     if fstab:
       p = fstab[mount_point]
-      if p.fs_type == 'f2fs':
+      if mount_by_label:
+        self.script.append('run_program("/sbin/mount", "%s");' % (mount_point,))
+      elif p.fs_type == 'f2fs':
         self.script.append('run_program("/sbin/mount", "-t", "auto", "%s", "%s");' %
                            (p.device, p.mount_point))
       else:
@@ -220,7 +222,7 @@ class EdifyGenerator(object):
     """Log a message to the screen (if the logs are visible)."""
     self.script.append('ui_print("%s");' % (message,))
 
-  def FormatPartition(self, partition):
+  def FormatPartition(self, partition, mount_by_label = False):
     """Format the given partition, specified by its mount point (eg,
     "/system")."""
 
@@ -228,7 +230,11 @@ class EdifyGenerator(object):
     fstab = self.info.get("fstab", None)
     if fstab:
       p = fstab[partition]
-      if p.fs_type == 'f2fs':
+      if mount_by_label:
+        if not p.mount_point in self.mounts:
+          self.script.mount(p.mount_point)
+        self.script.append('run_program("/sbin/rm", "-rf", "%s");' % (p.mount_point,))
+      elif p.fs_type == 'f2fs':
         self.script.append('run_program("/sbin/mkfs.f2fs", "%s");' %
                            (p.device))
       else:
