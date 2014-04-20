@@ -84,7 +84,12 @@ ifeq ($(TARGET_ARCH),x86)
     -mbionic
 endif
 
+ifeq ($(TARGET_CLANG_VERSION),)
 CLANG_CONFIG_EXTRA_TARGET_C_INCLUDES := external/clang/lib/include $(TARGET_OUT_HEADERS)/clang
+else
+STOCK_CLANG_CONFIG_EXTRA_TARGET_C_INCLUDES := external/clang/lib/include $(TARGET_OUT_HEADERS)/clang
+CLANG_CONFIG_EXTRA_TARGET_C_INCLUDES := prebuilts/clang/$(BUILD_OS)-x86/host/$(TARGET_CLANG_VERSION)/lib/clang/$(TARGET_CLANG_VERSION)/include
+endif
 
 # remove unknown flags to define CLANG_FLAGS
 TARGET_GLOBAL_CLANG_FLAGS += $(filter-out $(CLANG_CONFIG_UNKNOWN_CFLAGS),$(TARGET_GLOBAL_CFLAGS))
@@ -101,8 +106,10 @@ $(call clang-flags-subst,-march=armv5e,-march=armv5)
 $(call clang-flags-subst,-Wno-psabi,)
 $(call clang-flags-subst,-Wno-unused-but-set-variable,)
 
+ifeq ($(TARGET_CLANG_VERSION),)
 # clang does not support -mcpu=cortex-a15 yet - fall back to armv7-a for now
 $(call clang-flags-subst,-mcpu=cortex-a15,-march=armv7-a)
+endif
 
 ADDRESS_SANITIZER_CONFIG_EXTRA_CFLAGS := -fsanitize=address
 ADDRESS_SANITIZER_CONFIG_EXTRA_LDFLAGS := -Wl,-u,__asan_preinit
