@@ -72,6 +72,9 @@ Usage:  ota_from_target_files [flags] input_target_files output_ota_package
       Do not generate recovery image. For devices which do not have a truly
       separate recovery partition.
 
+  --persist <true|false>
+      Specify whether to enable persistence across installs (on by default).
+
 """
 
 import sys

@@ -1476,6 +1476,12 @@ ifneq ($(TARGET_NO_SEPARATE_RECOVERY),)
     $(INTERNAL_OTA_PACKAGE_TARGET): separate_recovery := --no_separate_recovery=true
 endif
 
+ifeq ($(TARGET_DISABLE_PERSIST),true)
+    $(INTERNAL_OTA_PACKAGE_TARGET): persist := false
+else
+    $(INTERNAL_OTA_PACKAGE_TARGET): persist := true
+endif
+
 $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
 	@echo -e ${CL_YLW}"Package OTA:"${CL_RST}" $@"
 	MKBOOTIMG=$(BOARD_CUSTOM_BOOTIMG_MK) \
@@ -1484,6 +1490,7 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
 	   -k $(KEY_CERT_PAIR) \
 	   --backup=$(backuptool) \
 	   --override_device=$(override_device) \
+	   --persist=$(persist) \
 	   $(override_prop) \
 	   $(separate_recovery) \
 	   $(BUILT_TARGET_FILES_PACKAGE) $@
