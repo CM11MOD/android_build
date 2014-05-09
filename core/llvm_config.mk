@@ -17,7 +17,9 @@ CLANG_CONFIG_EXTRA_CFLAGS := \
   -O3 -Qunused-arguments -Wno-unknown-warning-option -D__compiler_offsetof=__builtin_offsetof \
 
 CLANG_CONFIG_UNKNOWN_CFLAGS := \
-  -funswitch-loops
+  -funswitch-loops \
+  -funsafe-loop-optimizations \
+  -fno-canonical-system-headers
 
 ifeq ($(TARGET_ARCH),arm)
   RS_TRIPLE := armv7-none-linux-gnueabi
