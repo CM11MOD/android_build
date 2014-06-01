@@ -121,6 +121,16 @@ TARGET_thumb_CFLAGS +=  -Wno-unused-parameter \
                         -Wno-unused-function
 endif
 
+# Allow testing CFLAGS for ARM...
+ifneq ($(strip $(DEBUG_EXPERIMENTAL_FLAGS_ARM)),)
+TARGET_arm_CFLAGS += $(DEBUG_EXPERIMENTAL_FLAGS_ARM)
+endif
+
+# ...and THUMB
+ifneq ($(strip $(DEBUG_EXPERIMENTAL_FLAGS_THUMB)),)
+TARGET_arm_CFLAGS += $(DEBUG_EXPERIMENTAL_FLAGS_THUMB)
+endif
+
 # Set FORCE_ARM_DEBUGGING to "true" in your buildspec.mk
 # or in your environment to force a full arm build, even for
 # files that are normally built as thumb; this can make
@@ -168,8 +178,9 @@ TARGET_GLOBAL_CFLAGS += \
 # by turning off the builtin sin function.
 ifneq ($(filter 4.6 4.6.% 4.7 4.7.% 4.8 4.8.% 4.9 4.9.%, $(TARGET_GCC_VERSION_AND)),)
 ifneq ($(filter 4.6 4.6.% 4.7 4.7.% 4.8 4.8.% 4.9 4.9.%, $(TARGET_GCC_VERSION_ARM)),)
-TARGET_GLOBAL_CFLAGS += -Wno-unused-but-set-variable -fstrict-aliasing -fno-builtin-sin \
-			-fno-strict-volatile-bitfields
+TARGET_GLOBAL_CFLAGS += -Wno-unused-but-set-variable -fno-builtin-sin \
+			-fno-strict-volatile-bitfields \
+            -Wno-unused-parameter -Wno-unused-but-set-parameter
 endif
 endif
 
@@ -195,6 +206,10 @@ TARGET_GLOBAL_LDFLAGS += \
 TARGET_GLOBAL_CFLAGS += -mthumb-interwork -fstrict-aliasing
 
 TARGET_GLOBAL_CPPFLAGS += -fvisibility-inlines-hidden -fstrict-aliasing
+
+ifneq ($(DEBUG_NO_STDCXX11),yes)
+TARGET_GLOBAL_CPPFLAGS += -std=gnu++11
+endif
 
 # More flags/options can be added here
 TARGET_RELEASE_CFLAGS += \
