@@ -106,9 +106,20 @@ $(call clang-flags-subst,-march=armv5e,-march=armv5)
 $(call clang-flags-subst,-Wno-psabi,)
 $(call clang-flags-subst,-Wno-unused-but-set-variable,)
 
+# clang does not support cortex-a15, so FIRST (original)...
+# fall back to -march=armv7-a ...IF NO TARGET_CLANG_VERSION.
 ifeq ($(TARGET_CLANG_VERSION),)
-# clang does not support -mcpu=cortex-a15 yet - fall back to armv7-a for now
 $(call clang-flags-subst,-mcpu=cortex-a15,-march=armv7-a)
+else
+# or use krait2 for krait cpu variants using msm-3.4 clang...
+ifeq ($(TARGET_CLANG_VERSION),msm-3.4)
+ifeq ($(TARGET_CPU_VARIANT),krait)
+$(call clang-flags-subst,-mtune=cortex-a15,-mtune=krait2)
+$(call clang-flags-subst,-mcpu=cortex-a15,-mcpu=krait2)
+$(call clang-flags-subst,-mtune=cortex-a9,-mtune=krait2)
+$(call clang-flags-subst,-mcpu=cortex-a9,-mcpu=krait2)
+endif
+endif
 endif
 
 ADDRESS_SANITIZER_CONFIG_EXTRA_CFLAGS := -fsanitize=address
