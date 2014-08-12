@@ -51,6 +51,39 @@ ifeq ($(strip $(wildcard $(TARGET_ARCH_SPECIFIC_MAKEFILE))),)
 $(error Unknown ARM architecture version: $(TARGET_ARCH_VARIANT))
 endif
 
+ifeq ($(strip $(DONT_WARN_STRICT_ALIASING)),)
+STRICT_ALIASING_WARNINGS := \
+                        -Wstrict-aliasing=2 \
+                        -Werror=strict-aliasing
+else
+STRICT_ALIASING_WARNINGS := \
+                        -Wno-strict-aliasing
+endif
+
+ifeq ($(strip $(BONE_STOCK)),)
+TARGET_ARM_O := 3
+TARGET_THUMB_O := s
+TARGET_THUMB_STRICT := \
+                    -fstrict-aliasing
+
+# aosp gcc 4.7 barfs with ftree-vectorize
+ifneq ($(filter 4.7 4.7.%, $(TARGET_GCC_VERSION_AND)),)
+ifneq ($(filter 4.7 4.7.%, $(TARGET_GCC_VERSION_ARM)),)
+TARGET_EXTRA_BULLSHIT_1 += \
+                    -ftree-vectorize
+endif
+endif
+TARGET_EXTRA_BULLSHIT_2 += \
+                    -funsafe-loop-optimizations
+TARGET_THUMB_BULLSHIT += \
+                    -funsafe-math-optimizations
+else
+TARGET_ARM_O := 2
+TARGET_THUMB_O := s
+TARGET_THUMB_STRICT := \
+-fno-strict-aliasing
+endif
+
 include $(TARGET_ARCH_SPECIFIC_MAKEFILE)
 
 # You can set TARGET_TOOLS_PREFIX to get gcc from somewhere else
@@ -74,51 +107,37 @@ endif
 
 TARGET_NO_UNDEFINED_LDFLAGS := -Wl,--no-undefined
 
-TARGET_arm_CFLAGS :=    -O3 \
+# ARM specific
+TARGET_arm_CFLAGS :=    -O$(TARGET_ARM_O) \
                         -fomit-frame-pointer \
-                        -fstrict-aliasing \
-                        -funswitch-loops \
-                        -fno-tree-vectorize \
-                        -fno-inline-functions \
-                        -Wstrict-aliasing=3 \
-                        -Werror=strict-aliasing \
-                        -fgcse-after-reload \
-                        -fno-ipa-cp-clone \
-                        -fno-vect-cost-model \
-                        -Wno-error=unused-parameter \
-                        -Wno-error=unused-but-set-variable
+                        -fstrict-aliasing $(TARGET_EXTRA_BULLSHIT_1) \
+                        -funswitch-loops $(TARGET_EXTRA_BULLSHIT_2)
 
-# Modules can choose to compile some source as thumb.
+TARGET_arm_CFLAGS += \
+                        $(STRICT_ALIASING_WARNINGS) $(DEBUG_SYMBOL_FLAGS)
+
+# THUMB2 specific
 TARGET_thumb_CFLAGS :=  -mthumb \
-                        -Os \
-                        -fomit-frame-pointer \
-                        -fstrict-aliasing \
-                        -fno-tree-vectorize \
-                        -fno-inline-functions \
-                        -fno-unswitch-loops \
-                        -Wstrict-aliasing=3 \
-                        -Werror=strict-aliasing \
-                        -fgcse-after-reload \
-                        -fno-ipa-cp-clone \
-                        -fno-vect-cost-model \
-                        -Wno-error=unused-parameter \
-                        -Wno-error=unused-but-set-variable
+                        -O$(TARGET_THUMB_O) \
+                        -fomit-frame-pointer $(TARGET_THUMB_BULLSHIT) \
+                        $(TARGET_THUMB_STRICT) $(STRICT_ALIASING_WARNINGS) $(DEBUG_SYMBOL_FLAGS)
 
-# Turn off strict-aliasing if we're building an AOSP variant without the
-# patchset...
-ifeq ($(DEBUG_NO_STRICT_ALIASING),yes)
-TARGET_arm_CFLAGS += -fno-strict-aliasing -Wno-error=strict-aliasing
-TARGET_thumb_CFLAGS += -fno-strict-aliasing -Wno-error=strict-aliasing
-endif
-
-ifneq ($(filter 4.8 4.8.% 4.9 4.9.%, $(TARGET_GCC_VERSION)),)
-TARGET_arm_CFLAGS +=  -Wno-unused-parameter \
-                      -Wno-unused-value \
-                      -Wno-unused-function
+#SHUT THE F$#@ UP!
+TARGET_arm_CFLAGS +=    -Wno-unused-parameter \
+                        -Wno-unused-value \
+                        -Wno-unused-function
 
 TARGET_thumb_CFLAGS +=  -Wno-unused-parameter \
                         -Wno-unused-value \
                         -Wno-unused-function
+
+# Turn off strict-aliasing if we're building an AOSP variant without the
+# patchset...
+ifeq ($(strip $(BONE_STOCK)),)
+ifeq ($(DEBUG_NO_STRICT_ALIASING),yes)
+TARGET_arm_CFLAGS += -fno-strict-aliasing -Wno-error=strict-aliasing
+TARGET_thumb_CFLAGS += -fno-strict-aliasing -Wno-error=strict-aliasing
+endif   
 endif
 
 # Set FORCE_ARM_DEBUGGING to "true" in your buildspec.mk
@@ -150,17 +169,24 @@ TARGET_GLOBAL_CFLAGS += \
 			-ffunction-sections \
 			-fdata-sections \
 			-funwind-tables \
-			-fstrict-aliasing \
 			-fstack-protector \
 			-Wa,--noexecstack \
 			-Werror=format-security \
-			-D_FORTIFY_SOURCE=2 \
+			-D_FORTIFY_SOURCE=0 \
+			-fstrict-aliasing \
 			-fno-short-enums \
+			-pipe \
 			$(arch_variant_cflags) \
-			-Wno-error=unused-parameter \
-			-Wno-error=unused-but-set-variable \
 			-include $(android_config_h) \
-			-I $(dir $(android_config_h))
+			-I $(dir $(android_config_h)) \
+			$(STRICT_ALIASING_WARNINGS) $(DEBUG_SYMBOL_FLAGS) $(DEBUG_FRAME_POINTER_FLAGS)
+
+TARGET_GLOBAL_CPPFLAGS += \
+			$(arch_variant_cflags)
+
+android_config_h := $(call select-android-config-h,linux-arm)
+TARGET_ANDROID_CONFIG_CFLAGS := -include $(android_config_h) -I $(dir $(android_config_h))
+TARGET_GLOBAL_CFLAGS += $(TARGET_ANDROID_CONFIG_CFLAGS)
 
 # This warning causes dalvik not to build with gcc 4.6+ and -Werror.
 # We cannot turn it off blindly since the option is not available
@@ -168,8 +194,17 @@ TARGET_GLOBAL_CFLAGS += \
 # by turning off the builtin sin function.
 ifneq ($(filter 4.6 4.6.% 4.7 4.7.% 4.8 4.8.% 4.9 4.9.%, $(TARGET_GCC_VERSION_AND)),)
 ifneq ($(filter 4.6 4.6.% 4.7 4.7.% 4.8 4.8.% 4.9 4.9.%, $(TARGET_GCC_VERSION_ARM)),)
-TARGET_GLOBAL_CFLAGS += -Wno-unused-but-set-variable -fstrict-aliasing -fno-builtin-sin \
+TARGET_GLOBAL_CFLAGS += -Wno-unused-but-set-variable -fno-builtin-sin \
 			-fno-strict-volatile-bitfields
+ifneq ($(filter 4.8 4.8.% 4.9 4.9.%, $(TARGET_GCC_VERSION_AND)),)
+ifneq ($(filter 4.8 4.8.% 4.9 4.9.%, $(TARGET_GCC_VERSION_ARM)),)
+gcc_variant_ldflags := \
+			-Wl,--enable-new-dtags
+else
+gcc_variant_ldflags := \
+			-Wl,--icf=safe
+endif
+endif
 endif
 endif
 
@@ -199,18 +234,11 @@ TARGET_GLOBAL_CPPFLAGS += -fvisibility-inlines-hidden -fstrict-aliasing
 # More flags/options can be added here
 TARGET_RELEASE_CFLAGS += \
 			-DNDEBUG \
-			-g \
-			-Wstrict-aliasing=3 \
-			-Werror=strict-aliasing \
-			-fstrict-aliasing \
+                        -g \
 			-fgcse-after-reload \
 			-frerun-cse-after-loop \
 			-frename-registers \
-			-fno-ipa-cp-clone \
-			-fno-vect-cost-model \
-			-Wno-error=unused-parameter \
-			-Wno-error=unused-but-set-variable
-
+			-pipe $(DEBUG_SYMBOL_FLAGS) $(DEBUG_FRAME_POINTER_FLAGS)
 libc_root := bionic/libc
 libm_root := bionic/libm
 libstdc++_root := bionic/libstdc++
@@ -225,6 +253,17 @@ ifneq ($(wildcard $(TARGET_CC)),)
 TARGET_LIBGCC := $(shell $(TARGET_CC) $(TARGET_GLOBAL_CFLAGS) -print-libgcc-file-name)
 target_libgcov := $(shell $(TARGET_CC) $(TARGET_GLOBAL_CFLAGS) \
         -print-file-name=libgcov.a)
+endif
+
+# Define LTO (Link Time Optimization options)
+
+ifeq ($(strip $(TARGET_ENABLE_LTO)),true)
+# Enable global LTO if TARGET_ENABLE_LTO is set.
+TARGET_LTO_CFLAGS := -flto \
+                    -fno-toplevel-reorder \
+                    -fno-section-anchors \
+                    -flto-compression-level=5 \
+                    -fuse-linker-plugin
 endif
 
 # Define FDO (Feedback Directed Optimization) options.

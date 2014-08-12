@@ -12,12 +12,22 @@ define clang-flags-subst
   $(eval $(call do-clang-flags-subst,$(1),$(2)))
 endef
 
-
 CLANG_CONFIG_EXTRA_CFLAGS := \
+  -O3 \
   -D__compiler_offsetof=__builtin_offsetof \
+  $(TARGET_THUMB_STRICT) $(DEBUG_SYMBOL_FLAGS) $(DEBUG_FRAME_POINTER_FLAGS)
 
 CLANG_CONFIG_UNKNOWN_CFLAGS := \
-  -funswitch-loops
+  -funswitch-loops \
+  -funsafe-loop-optimizations
+
+ifeq ($(TARGET_ENABLE_LTO),true)
+CLANG_CONFIG_UNKNOWN_CFLAGS += \
+  -fno-toplevel-reorder \
+  -flto-compression-level=5 \
+  -fuse-linker-plugin \
+  -fno-section-anchors
+endif
 
 ifeq ($(TARGET_ARCH),arm)
   RS_TRIPLE := armv7-none-linux-gnueabi
@@ -102,19 +112,41 @@ TARGET_thumb_CLANG_CFLAGS += $(filter-out $(CLANG_CONFIG_UNKNOWN_CFLAGS),$(TARGE
 $(call clang-flags-subst,-march=armv5te,-march=armv5t)
 $(call clang-flags-subst,-march=armv5e,-march=armv5)
 
-# clang does not support -Wno-psabi and -Wno-unused-but-set-variable
+# clang does not support -Wno-psabi, -Wno-unused-but-set-variable, and
+# -Wno-unused-but-set-parameter
 $(call clang-flags-subst,-Wno-psabi,)
 $(call clang-flags-subst,-Wno-unused-but-set-variable,)
+$(call clang-flags-subst,-Wno-unused-but-set-parameter,)
 
+# clang does not support cortex-a15, so FIRST (original)...
+# fall back to -march=armv7-a ...IF NO TARGET_CLANG_VERSION.
 ifeq ($(TARGET_CLANG_VERSION),)
-# clang does not support -mcpu=cortex-a15 yet - fall back to armv7-a for now
 $(call clang-flags-subst,-mcpu=cortex-a15,-march=armv7-a)
+else
+# or use krait2 for krait cpu variants using msm-3.4 clang...
+ifeq ($(TARGET_CLANG_VERSION),msm-3.4)
+ifeq ($(TARGET_CPU_VARIANT),krait)
+$(call clang-flags-subst,-mtune=cortex-a15,-mtune=krait2)
+$(call clang-flags-subst,-mcpu=cortex-a15,-mcpu=krait2)
+$(call clang-flags-subst,-mtune=cortex-a9,-mtune=krait2)
+$(call clang-flags-subst,-mcpu=cortex-a9,-mcpu=krait2)
 endif
+endif
+endif
+
+ifneq ($(MAXIMUM_OVERDRIVE),true)
+# GCC uses clang's address sanitizer to detect memory errors in the program through debugging tools like gdb. They do this
+# using an extra instrumentation module llvm pass during compilation and a runtime library that replaces the malloc function.
+#
+# Output code performance can be effected if a "hot" function that is known to speed up the code gets flagged during the extra
+# compiler pass but the primary benefit of turning it off is greatly speeding up your build time.   If you choose to add this
+# you should still compile without it occassionally to verify the code for your build is still sound.
 
 ADDRESS_SANITIZER_CONFIG_EXTRA_CFLAGS := -fsanitize=address
 ADDRESS_SANITIZER_CONFIG_EXTRA_LDFLAGS := -Wl,-u,__asan_preinit
 ADDRESS_SANITIZER_CONFIG_EXTRA_SHARED_LIBRARIES := libdl libasan_preload
 ADDRESS_SANITIZER_CONFIG_EXTRA_STATIC_LIBRARIES := libasan
+endif
 
 # This allows us to use the superset of functionality that compiler-rt
 # provides to Clang (for supporting features like -ftrapv).
