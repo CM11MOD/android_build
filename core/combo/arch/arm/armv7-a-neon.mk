@@ -36,3 +36,15 @@ endif
 arch_variant_cflags += \
     -mfloat-abi=softfp
 
+######################################
+## SNAPDRAGON CLANG/LLVM 3.4
+######################################
+ifeq ($(filter-out msm%,$(TARGET_CLANG_VERSION)),)
+# krait specific clang optimizations
+ifeq ($(TARGET_CPU_VARIANT),krait)
+CLANG_MSM_EXTRA_CFLAGS += \
+  -mtune=krait2 \
+  -mcpu=krait2
+endif
+endif
+
