@@ -240,6 +240,7 @@ TARGET_GLOBAL_CPPFLAGS += -fvisibility-inlines-hidden -fstrict-aliasing
 # More flags/options can be added here
 TARGET_RELEASE_CFLAGS += \
 			-DNDEBUG \
+                        -g \
 			-fgcse-after-reload \
 			-frerun-cse-after-loop \
 			-frename-registers \
@@ -263,9 +264,12 @@ endif
 # Define LTO (Link Time Optimization options)
 
 ifeq ($(strip $(TARGET_ENABLE_LTO)),true)
-# Disable global LTO if DISABLE_BUILD_LTO is set.
-TARGET_LTO_CFLAGS := -flto -fno-toplevel-reorder -fuse-linker-plugin
-TARGET_LTO_LDFLAGS := -Wl,-flto
+# Enable global LTO if TARGET_ENABLE_LTO is set.
+TARGET_LTO_CFLAGS := -flto \
+                    -fno-toplevel-reorder \
+                    -fno-section-anchors \
+                    -flto-compression-level=5 \
+                    -fuse-linker-plugin
 endif
 
 # Define FDO (Feedback Directed Optimization) options.
