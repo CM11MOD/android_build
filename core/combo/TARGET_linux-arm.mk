@@ -120,6 +120,12 @@ endif
 
 android_config_h := $(call select-android-config-h,linux-arm)
 
+NO_CANONICAL_SYSTEM_HEADERS :=
+ifeq ($(filter 4.6 4.6.% 4.7 4.7.%, $(shell $(TARGET_CC) --version)),)
+NO_CANONICAL_SYSTEM_HEADERS := \
+    -fno-canonical-system-headers
+endif
+
 TARGET_GLOBAL_CFLAGS += \
 			-msoft-float -fpic $(PIE_GLOBAL_CFLAGS) \
 			-ffunction-sections \
@@ -130,8 +136,7 @@ TARGET_GLOBAL_CFLAGS += \
 			-Werror=format-security \
 			-D_FORTIFY_SOURCE=2 \
 			-fno-short-enums \
-            -no-canonical-prefixes \
-            -fno-canonical-system-headers \
+            -no-canonical-prefixes $(NO_CANONICAL_SYSTEM_HEADERS)\
 			$(arch_variant_cflags) \
 			-include $(android_config_h) \
 			-I $(dir $(android_config_h))
