@@ -516,4 +516,7 @@ ifneq ($(CM_BUILD),)
 $(eval include vendor/cm/sepolicy/sepolicy.mk)
 endif
 
+# Vanir kernel stuff
+include $(BUILD_SYSTEM)/kernel_config.mk
+
 include $(BUILD_SYSTEM)/dumpvar.mk
