@@ -36,8 +36,3 @@ endif
 arch_variant_cflags += \
     -mfloat-abi=softfp
 
-arch_variant_ldflags := \
-	-Wl,--fix-cortex-a8
-    -mfloat-abi=softfp \
-    -mfpu=neon
-
