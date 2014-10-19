@@ -119,6 +119,7 @@ OPTIONS.two_step = False
 OPTIONS.backuptool = False
 OPTIONS.override_device = 'auto'
 OPTIONS.override_prop = False
+OPTIONS.persist = True
 OPTIONS.no_separate_recovery = False
 OPTIONS.mount_by_label = False
 
@@ -441,6 +442,14 @@ fi
   common.ZipWriteStr(output_zip, "recovery/etc/install-cm-recovery.sh", sh)
   return Item.Get("system/etc/install-cm-recovery.sh", dir=False)
 
+def CopyInstallTools(output_zip):
+  oldcwd = os.getcwd()
+  os.chdir(os.getenv('OUT'))
+  for root, subdirs, files in os.walk("install"):
+    for f in files:
+      p = os.path.join(root, f)
+      output_zip.write(p, p)
+  os.chdir(oldcwd)
 
 def WriteFullOTAPackage(input_zip, output_zip):
   # TODO: how to determine this?  We don't know what version it will
@@ -525,6 +534,8 @@ else if get_stage("%(bcb_dev)s", "stage") == "3/3" then
   if not OPTIONS.mount_by_label:
     script.Unmount("/system")
 
+  CopyInstallTools(output_zip)
+
   script.ShowProgress(0.5, 0)
 
   if OPTIONS.wipe_user_data:
@@ -537,6 +548,12 @@ else if get_stage("%(bcb_dev)s", "stage") == "3/3" then
 
   if "selinux_fc" in OPTIONS.info_dict:
     WritePolicyConfig(OPTIONS.info_dict["selinux_fc"], output_zip)
+
+  if OPTIONS.persist:
+    script.Mount("/system", OPTIONS.mount_by_label)
+    script.RunPersist("save")
+  if not OPTIONS.mount_by_label:
+    script.Unmount("/system")
 
   script.FormatPartition("/system", OPTIONS.mount_by_label)
 
@@ -556,6 +573,9 @@ else if get_stage("%(bcb_dev)s", "stage") == "3/3" then
 
   Item.GetMetadata(input_zip)
   Item.Get("system").SetPermissions(script)
+
+  if OPTIONS.persist:
+    script.RunPersist("restore")
 
   common.CheckSize(boot_img.data, "boot.img", OPTIONS.info_dict)
   common.ZipWriteStr(output_zip, "boot.img", boot_img.data)
@@ -1049,6 +1069,8 @@ def main(argv):
       OPTIONS.override_device = a
     elif o in ("--override_prop"):
       OPTIONS.override_prop = bool(a.lower() == 'true')
+    elif o in ("--persist"):
+      OPTIONS.persist = a
     elif o in ("--no_separate_recovery"):
       OPTIONS.no_separate_recovery = bool(a.lower() == 'true')
     elif o in ("--mount_by_label"):
@@ -1071,7 +1093,9 @@ def main(argv):
                                               "backup=",
                                               "override_device=",
                                               "override_prop=",
+                                              "persist=",
                                               "no_separate_recovery=",
+                                              "mount_by_label=",
                                               ],
                              extra_option_handler=option_handler)
 
