@@ -15,6 +15,7 @@ endef
 
 CLANG_CONFIG_EXTRA_CFLAGS := \
   -O3 -Qunused-arguments -Wno-unknown-warning-option -D__compiler_offsetof=__builtin_offsetof \
+  $(TARGET_THUMB_STRICT) $(DEBUG_SYMBOL_FLAGS) $(DEBUG_FRAME_POINTER_FLAGS)
 
 CLANG_CONFIG_UNKNOWN_CFLAGS := \
   -funswitch-loops \
@@ -119,9 +120,11 @@ CLANG_CONFIG_EXTRA_LDFLAGS += $(CLANG_MSM_EXTRA_CFLAGS)
 $(call clang-flags-subst,-march=armv5te,-march=armv5t)
 $(call clang-flags-subst,-march=armv5e,-march=armv5)
 
-# clang does not support -Wno-psabi and -Wno-unused-but-set-variable
+# clang does not support -Wno-psabi, -Wno-unused-but-set-variable, and
+# -Wno-unused-but-set-parameter
 $(call clang-flags-subst,-Wno-psabi,)
 $(call clang-flags-subst,-Wno-unused-but-set-variable,)
+$(call clang-flags-subst,-Wno-unused-but-set-parameter,)
 
 ifeq ($(TARGET_CLANG_VERSION),)
 # clang does not support -mcpu=cortex-a15 yet - fall back to armv7-a for now
