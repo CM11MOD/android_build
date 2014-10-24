@@ -1498,6 +1498,10 @@ else
     $(INTERNAL_OTA_PACKAGE_TARGET): mount_by_label := false
 endif
 
+ifeq ($(CUSTOM_EXTRA_SCRIPT),)
+    CUSTOM_EXTRA_SCRIPT := vendor/cm/afterflash/extra_script.recovery
+endif
+
 $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
 	@echo -e ${CL_YLW}"Package OTA:"${CL_RST}" $@"
 	MKBOOTIMG=$(BOARD_CUSTOM_BOOTIMG_MK) \
@@ -1506,10 +1510,11 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
 	   -k $(KEY_CERT_PAIR) \
 	   --backup=$(backuptool) \
 	   --override_device=$(override_device) \
-	   $(override_prop) \
 	   --persist=$(persist) \
-	   $(separate_recovery) \
 	   --mount_by_label=$(mount_by_label) \
+	   --extra_script=$(CUSTOM_EXTRA_SCRIPT) \
+	   $(override_prop) \
+	   $(separate_recovery) \
 	   $(BUILT_TARGET_FILES_PACKAGE) $@
 
 CM_TARGET_PACKAGE := $(PRODUCT_OUT)/cm-$(CM_VERSION).zip
